@@ -1,5 +1,13 @@
 # SolidWorks 3D CAD Files  
 
+## 🚀 Current development  
+- Cuboid body with X-configuration arm
+- Selection of landing gear
+- Selection of material (FEA & Granta Edupack etc.) 
+
+## 🧐 Changelog  
+13 Feb 21 — Add files via upload  
+
 ## 📃 File extensions  
 **`.SLDPRT`** &emsp; SOLIDWORKS Part File  
 **`.SLDASM`** &emsp; SOLIDWORKS Assembly File  
@@ -146,11 +154,11 @@ Associated .STL file: [servo.STL](https://github.com/kaizer222/FEEG2001_DroneAss
   <tr align="center">
     <td>servo_bolt_long.SLDPRT</td>
     <td>Servo bolt (long)</td>
-    <td>2</td>
+    <td>4</td>
   </tr>
   <tr align="center">
     <td>servo_nut.SLDPRT</td>
-    <td>Servo nut (short)</td>
+    <td>Servo nut</td>
     <td>6</td>
   </tr>
   <tr align="center">
