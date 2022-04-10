@@ -1,19 +1,21 @@
 /*Combined Logging and Gimbal Firmware
  * Flow:
- * 1) Get MPU output
- * 2) Log data
  * 3) Do gimbal stuff
  * 4) Make code for locking gimbal 
- * 4) Do camera stuff
+ * 5) Do camera stuff
  * 
  * Pin List:
  * 
  *            |            Description          |
  * Pin  13    |   MPU status                    |
+ * pIN  12    |   DMP Init Status               |
  * Pin  02    |   MPU Interrupt Pin             |
  * Pin  A4    |   MPU SDA                       |
  * Pin  A5    |   MPU SCL                       |
  * Pin  10    |   DataLogger Shield ChipSelect  |
+ * Pin  11    |   Yaw Servo                     |
+ * Pin  9     |   Pitch Servo                   |
+ * Pin  8     |   Roll Servo                    |
  */
 
 // ========================   MPU required libraries          ======================== //
@@ -30,7 +32,7 @@
 #include "SD.h"
 
 // ========================   Gimbal required libraries       ======================== //
-
+#include <Servo.h>
 
 // ========================   MPU initialisation              ======================== //
 /*
@@ -46,6 +48,7 @@ MPU6050 mpu (0x69);
 #define OUTPUT_READABLE_YAWPITCHROLL      // to see the yaw/ pitch/roll angles (in degrees) calculated from the quaternions coming from the FIFO.
 #define INTERRUPT_PIN 2                   // use pin 2 on Arduino Uno & most boards
 #define LED_PIN 13                        // MPU status now tied to Pin 13 LED
+#define DMP_PIN 12                        // DMP init status pin
 bool blinkState = false; 
 
 //MPU control/status variables
@@ -90,16 +93,25 @@ const int chipSelect = 10;                // for the data logging shield, use di
 File logfile;
 RTC_DS1307 RTC;
 
+// ========================   Servo Initialisation      ======================== //
+Servo servo_y;
+Servo servo_p;
+Servo servo_r;
+int j=0;
+float correct;
+
 void setup() {
 // ========================       Serial Setup          ======================== //
   Serial.begin(115200);                   // Change to project baud rate
   while (!Serial);                        // wait for Leonardo enumeration, others continue immediately
-  Serial.print("Current date: ");
+  Serial.print(F("Current date: "));
   Serial.println(__DATE__);
-  Serial.print("Current time: ");
+  Serial.print(F("Current time: "));
   Serial.println(__TIME__);
   
 // ========================         MPU Setup           ========================//
+pinMode (DMP_PIN,OUTPUT);
+digitalWrite(DMP_PIN,LOW);
 // join I2C bus
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     Wire.begin();
@@ -163,6 +175,7 @@ void setup() {
     Serial.print(F("DMP Initialization failed (code "));
     Serial.print(devStatus);
     Serial.println(F(")."));
+    digitalWrite(DMP_PIN,HIGH);
   } 
 
 // configure LED for output
@@ -215,6 +228,11 @@ pinMode(LED_PIN, OUTPUT);
 
   // If you want to set the AREF to something other than 5V
   // analogReference(EXTERNAL);
+
+// ========================     Servo Set Up      ========================//
+  servo_y.attach(11);
+  servo_p.attach(9);
+  servo_r.attach(8);
 }
 
 void loop() {
@@ -252,11 +270,11 @@ void loop() {
 // display Euler angles in degrees
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetEuler(euler, &q);
-          Serial.print("euler\t");
+          Serial.print(F("euler\t"));
           Serial.print(euler[0] * 180/M_PI);
-          Serial.print("\t");
+          Serial.print(F("\t"));
           Serial.print(euler[1] * 180/M_PI);
-          Serial.print("\t");
+          Serial.print(F("\t"));
           Serial.println(euler[2] * 180/M_PI);
       #endif
 
@@ -265,12 +283,35 @@ void loop() {
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetGravity(&gravity, &q);
           mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-          Serial.print("ypr\t");
+          Serial.print(F("ypr\t"));
           Serial.print(ypr[0] * 180/M_PI);
-          Serial.print("\t");
+          Serial.print(F("\t"));
           Serial.print(ypr[1] * 180/M_PI);
-          Serial.print("\t");
+          Serial.print(F("\t"));
           Serial.println(ypr[2] * 180/M_PI);
+// ========================     Gimbal Implementation Here     ========================//
+// Yaw, Pitch, Roll values - Radians to degrees
+          ypr[0] = ypr[0] * 180 / M_PI;
+          ypr[1] = ypr[1] * 180 / M_PI;
+          ypr[2] = ypr[2] * 180 / M_PI;
+          
+// Skip 300 readings (self-calibration process)
+          if (j <= 300) {
+            correct = ypr[0]; // Yaw starts at random value, so we capture last value after 300 readings
+            j++;
+          }
+// After 300 readings
+          else {
+            ypr[0] = ypr[0] - correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
+// Map the values of the MPU6050 sensor from -90 to 90 to values suatable for the servo control from 0 to 180
+            int servo0Value = map(ypr[0], -90, 90, 0, 180);
+            int servo1Value = map(ypr[1], -90, 90, 0, 180);
+            int servo2Value = map(ypr[2], -90, 90, 180, 0);
+            
+// Control the servos according to the MPU6050 orientation
+            servo_y.write(servo0Value);
+            servo_p.write(servo1Value);
+            servo_r.write(servo2Value);          
       #endif
 
       #ifdef OUTPUT_READABLE_REALACCEL
@@ -381,4 +422,5 @@ void loop() {
     if ((millis() - syncTime) < SYNC_INTERVAL) return;
     syncTime = millis();
     logfile.flush();
+  }
 }

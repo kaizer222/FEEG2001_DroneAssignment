@@ -1,9 +1,3 @@
-/*Gimbal test code
- * 
- * Date     |           Test content            |     Outcome     |     Actions     |
- * 10-4-22  | Roll PID as baseline for the rest | Ongoing         | --              |
- */
-
 /*
   DIY Gimbal - MPU6050 Arduino Tutorial
   by Dejan, www.HowToMechatronics.com
@@ -90,7 +84,7 @@ void setup() {
   // initialize serial communication
   // (115200 chosen because it is required for Teapot Demo output, but it's
   // really up to you depending on your project)
-  Serial.begin(115200);
+  Serial.begin(38400);
   while (!Serial); // wait for Leonardo enumeration, others continue immediately
 
   // initialize device
@@ -187,17 +181,24 @@ void loop() {
     ypr[1] = ypr[1] * 180 / M_PI;
     ypr[2] = ypr[2] * 180 / M_PI;
     
-    
-    ypr[0] = ypr[0] - correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
-    // Map the values of the MPU6050 sensor from -90 to 90 to values suatable for the servo control from 0 to 180
-    int servo0Value = map(ypr[0], -90, 90, 0, 180);
-    int servo1Value = map(ypr[1], -90, 90, 0, 180);
-    int servo2Value = map(ypr[2], -90, 90, 180, 0);
-    
-    // Control the servos according to the MPU6050 orientation
-    servo0.write(servo0Value);
-    servo1.write(servo1Value);
-    servo2.write(servo2Value);
+    // Skip 300 readings (self-calibration process)
+    if (j <= 300) {
+      correct = ypr[0]; // Yaw starts at random value, so we capture last value after 300 readings
+      j++;
+    }
+    // After 300 readings
+    else {
+      ypr[0] = ypr[0] - correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
+      // Map the values of the MPU6050 sensor from -90 to 90 to values suatable for the servo control from 0 to 180
+      int servo0Value = map(ypr[0], -90, 90, 0, 180);
+      int servo1Value = map(ypr[1], -90, 90, 0, 180);
+      int servo2Value = map(ypr[2], -90, 90, 180, 0);
+      
+      // Control the servos according to the MPU6050 orientation
+      servo0.write(servo0Value);
+      servo1.write(servo1Value);
+      servo2.write(servo2Value);
     }
 #endif
+  }
 }
