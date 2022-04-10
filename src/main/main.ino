@@ -11,6 +11,8 @@
  *            |            Description          |
  * Pin  13    |   MPU status                    |
  * Pin  02    |   MPU Interrupt Pin             |
+ * Pin  A4    |   MPU SDA                       |
+ * Pin  A5    |   MPU SCL                       |
  * Pin  10    |   DataLogger Shield ChipSelect  |
  */
 
@@ -40,7 +42,7 @@ uncomment "OUTPUT_READABLE_WORLDACCEL" if you want to see acceleration component
 #define OUTPUT_READABLE_WORLDACCEL
 */
 
-MPU6050 mpu;
+MPU6050 mpu (0x69);
 #define OUTPUT_READABLE_YAWPITCHROLL      // to see the yaw/ pitch/roll angles (in degrees) calculated from the quaternions coming from the FIFO.
 #define INTERRUPT_PIN 2                   // use pin 2 on Arduino Uno & most boards
 #define LED_PIN 13                        // MPU status now tied to Pin 13 LED
@@ -304,4 +306,79 @@ void loop() {
       blinkState = !blinkState;
       digitalWrite(LED_PIN, blinkState);
   }
+
+    DateTime now;
+
+    // Delay for the amount of time we want between readings
+    delay((LOG_INTERVAL ) - (millis() % LOG_INTERVAL));
+
+    // Log milliseconds since starting
+    uint32_t m = millis();
+    logfile.print(m);       // milliseconds since start
+    logfile.print(", ");    
+#ifdef ECHO_TO_SERIAL
+    Serial.print(m);        // milliseconds since start
+    Serial.print(", ");  
+#endif  // ECHO_TO_SERIAL
+
+    // Fetch the time
+    now = RTC.now();
+    // log time
+    logfile.print(now.unixtime());  // seconds since 1/1/1970
+    logfile.print(", ");
+    logfile.print('"');
+    logfile.print(now.year(), DEC);
+    logfile.print("/");
+    logfile.print(now.month(), DEC);
+    logfile.print("/");
+    logfile.print(now.day(), DEC);
+    logfile.print(" ");
+    logfile.print(now.hour(), DEC);
+    logfile.print(":");
+    logfile.print(now.minute(), DEC);
+    logfile.print(":");
+    logfile.print(now.second(), DEC);
+    logfile.print('"');
+#ifdef ECHO_TO_SERIAL
+    Serial.print(now.unixtime());  // seconds since 1/1/1970
+    Serial.print(", ");
+    Serial.print('"');
+    Serial.print(now.year(), DEC);
+    Serial.print("/");
+    Serial.print(now.month(), DEC);
+    Serial.print("/");
+    Serial.print(now.day(), DEC);
+    Serial.print(" ");
+    Serial.print(now.hour(), DEC);
+    Serial.print(":");
+    Serial.print(now.minute(), DEC);
+    Serial.print(":");
+    Serial.print(now.second(), DEC);
+    Serial.print('"');
+#endif  // ECHO_TO_SERIAL
+
+    logfile.print(", ");    
+    logfile.print("ypr\t");
+    logfile.print(ypr[0] * 180/M_PI);
+    logfile.print("\t");
+    logfile.print(ypr[1] * 180/M_PI);
+    logfile.print("\t");
+    logfile.println(ypr[2] * 180/M_PI);
+#ifdef ECHO_TO_SERIAL
+    Serial.print("ypr\t");
+    Serial.print(ypr[0] * 180/M_PI);
+    Serial.print("\t");
+    Serial.print(ypr[1] * 180/M_PI);
+    Serial.print("\t");
+    Serial.println(ypr[2] * 180/M_PI);
+#endif // ECHO_TO_SERIAL
+
+    logfile.println();
+#ifdef ECHO_TO_SERIAL
+    Serial.println();
+#endif // ECHO_TO_SERIAL
+
+    if ((millis() - syncTime) < SYNC_INTERVAL) return;
+    syncTime = millis();
+    logfile.flush();
 }
