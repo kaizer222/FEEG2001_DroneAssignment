@@ -13,7 +13,6 @@
  * PIN  10    |   DataLogger Shield ChipSelect  |
  * PIN  11    |   Yaw Servo                     |
  * PIN  12    |   DMP Init Status               |
- * PIN  13    |   MPU status                    |
  * PIN  A4    |   MPU SDA                       |
  * PIN  A5    |   MPU SCL                       |
  */
@@ -47,7 +46,6 @@ uncomment "OUTPUT_READABLE_WORLDACCEL" if you want to see acceleration component
 MPU6050 mpu (0x69);
 #define OUTPUT_READABLE_YAWPITCHROLL      // to see the yaw/ pitch/roll angles (in degrees) calculated from the quaternions coming from the FIFO.
 #define INTERRUPT_PIN 2                   // use pin 2 on Arduino Uno & most boards
-#define LED_PIN 13                        // MPU status now tied to Pin 13 LED
 #define DMP_PIN 12                        // DMP init status pin
 bool blinkState = false; 
 
@@ -226,7 +224,7 @@ pinMode(LED_PIN, OUTPUT);
   logfile.println("millis,unix_stamp,datetime,x,y,z");  
 #ifdef ECHO_TO_SERIAL
   Serial.println(F("millis,unix_stamp,datetime,x,y,z"));
-#endif  //ECHO_TO_SERIAL
+#endif  // ECHO_TO_SERIAL
 
   // If you want to set the AREF to something other than 5V
   // analogReference(EXTERNAL);
@@ -305,15 +303,15 @@ void loop() {
 // After 300 readings
           else {
               ypr[0] = ypr[0] - correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
-// Map the values of the MPU6050 sensor from -90 to 90 to values suatable for the servo control from 0 to 180
-              int servo0Value = map(ypr[0], -90, 90, 0, 180);
-              int servo1Value = map(ypr[1], -90, 90, 0, 180);
-              int servo2Value = map(ypr[2], -90, 90, 180, 0);
+
+              float servo0Value = ypr[0] + 90;
+              float servo1Value = ypr[1] + 90;
+              float servo2Value = 90 - ypr[0];
             
 // Control the servos according to the MPU6050 orientation
-              servo_y.write(servo0Value);
-              servo_p.write(servo1Value);
-              servo_r.write(servo2Value);          
+              servo_y.write((int)servo0Value);
+              servo_p.write((int)servo1Value);
+              servo_r.write((int)servo2Value);          
 #endif  // OUTPUT_READABLE_EULER
 
 #ifdef OUTPUT_READABLE_REALACCEL
@@ -345,15 +343,15 @@ void loop() {
           Serial.println(aaWorld.z);
 #endif  // OUTPUT_READABLE_WORLDACCEL
   
-// blink LED to indicate activity
+// Blink LED to indicate activity
       blinkState = !blinkState;
-      digitalWrite(LED_PIN, blinkState);
+      digitalWrite(LED_BUILTIN, blinkState);
   }
 
     DateTime now;
 
     // Delay for the amount of time we want between readings
-    delay((LOG_INTERVAL ) - (millis() % LOG_INTERVAL));
+    delay((LOG_INTERVAL) - (millis() % LOG_INTERVAL));
 
     // Log milliseconds since starting
     uint32_t m = millis();
