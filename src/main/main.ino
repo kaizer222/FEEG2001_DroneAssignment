@@ -83,7 +83,7 @@ uint32_t syncTime = 0;                    // time of last sync()
 #define WAIT_TO_START                     // wait for serial input in setup()
 const int chipSelect = 10;                // for the data logging shield, use digital pin 10
 
-#define DEBUG Serial.println(__LINE__);
+#define DEBUG Serial.print("DEBUG LINE: "); Serial.println(__LINE__);
 
 #define cerr(x) {\
     Serial.print(F("ERROR: "));\
