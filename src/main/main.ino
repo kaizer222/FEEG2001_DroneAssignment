@@ -1,4 +1,4 @@
-/*Combined Logging and Gimbal Firmware
+/* Combined Logging and Gimbal Firmware
  * Flow:
  * 3) Do gimbal stuff
  * 4) Make code for locking gimbal 
@@ -6,28 +6,28 @@
  * 
  * Pin List:
  * 
- *            |            Description          |
- * Pin  13    |   MPU status                    |
- * pIN  12    |   DMP Init Status               |
- * Pin  02    |   MPU Interrupt Pin             |
- * Pin  A4    |   MPU SDA                       |
- * Pin  A5    |   MPU SCL                       |
- * Pin  10    |   DataLogger Shield ChipSelect  |
- * Pin  11    |   Yaw Servo                     |
- * Pin  9     |   Pitch Servo                   |
- * Pin  8     |   Roll Servo                    |
+ *            |        == Description ==        |
+ * PIN  2     |   MPU Interrupt Pin             |
+ * PIN  8     |   Roll Servo                    |
+ * PIN  9     |   Pitch Servo                   |
+ * PIN  10    |   DataLogger Shield ChipSelect  |
+ * PIN  11    |   Yaw Servo                     |
+ * PIN  12    |   DMP Init Status               |
+ * PIN  13    |   MPU status                    |
+ * PIN  A4    |   MPU SDA                       |
+ * PIN  A5    |   MPU SCL                       |
  */
 
-// ========================   MPU required libraries          ======================== //
+// ========================      MPU required libraries       ======================== //
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
-//#include "MPU6050.h"
+// #include "MPU6050.h"
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-  #include <Wire.h>
+    #include <Wire.h>
 #endif
 
 
-// ========================   Data logger required libraries  ======================== //
+// ========================   Data logger required libraries   ======================== //
 #include "RTClib.h"
 #include "SD.h"
 
@@ -51,7 +51,7 @@ MPU6050 mpu (0x69);
 #define DMP_PIN 12                        // DMP init status pin
 bool blinkState = false; 
 
-//MPU control/status variables
+// MPU control/status variables
 bool dmpReady = false;                    // set true if DMP init was successful
 uint8_t mpuIntStatus;                     // holds actual interrupt status byte from MPU
 uint8_t devStatus;                        // return status after each device operation (0 = success, !0 = error)
@@ -59,7 +59,7 @@ uint16_t packetSize;                      // expected DMP packet size (default i
 uint16_t fifoCount;                       // count of all bytes currently in FIFO
 uint8_t fifoBuffer[64];                   // FIFO storage buffer
 
-//orientation/motion variables
+// Orientation/motion variables
 Quaternion q;                             // [w, x, y, z]         quaternion container
 VectorInt16 aa;                           // [x, y, z]            accel sensor measurements
 VectorInt16 aaReal;                       // [x, y, z]            gravity-free accel sensor measurements
@@ -97,8 +97,8 @@ RTC_DS1307 RTC;
 Servo servo_y;
 Servo servo_p;
 Servo servo_r;
-int j=0;
-float correct;
+int j = 0;
+float correct = 0.0;
 
 void setup() {
 // ========================       Serial Setup          ======================== //
@@ -112,21 +112,21 @@ void setup() {
 // ========================         MPU Setup           ========================//
 pinMode (DMP_PIN,OUTPUT);
 digitalWrite(DMP_PIN,LOW);
-// join I2C bus
+// Join I2C bus
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     Wire.begin();
-    Wire.setClock(40000);                // 40kHz I2C clock
+    Wire.setClock(40000);  // 40kHz I2C clock
     
   #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
     Fastwire::setup(400,true) 
   #endif
 
-//Initialise MPU device
+// Initialise MPU device
   Serial.println(F("Initialising I2C devices..."));
   mpu.initialize();
   pinMode(INTERRUPT_PIN, INPUT);
 
-//verify connection
+// Verify connection
   Serial.println(F("Testing device connections..."));
   Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
@@ -237,14 +237,13 @@ pinMode(LED_PIN, OUTPUT);
 
 void loop() {
 // ========================     MPU Main Loop     ========================//
-// if programming failed, don't try to do anything
-  if (!dmpReady) return;
+    if (!dmpReady) return;
 // read a packet from FIFO
 // wait for MPU interrupt or extra packet(s) available
     while (!mpuInterrupt && fifoCount < packetSize) {
-        if (mpuInterrupt && fifoCount < packetSize) {                     // try to get out of the infinite loop 
+        if (mpuInterrupt && fifoCount < packetSize) {  // try to get out of the infinite loop 
           fifoCount = mpu.getFIFOCount();
-        }                                                                 //if you are really paranoid you can frequently test in between other stuff to see if mpuInterrupt is true, and if so, "break;" from the while() loop to immediately process the MPU data
+        }  // if you are really paranoid you can frequently test in between other stuff to see if mpuInterrupt is true, and if so, "break;" from the while() loop to immediately process the MPU data
     }
 
 // Reset interrupt flag and get INT_STATUS byte
@@ -266,7 +265,8 @@ void loop() {
 
         mpu.getFIFOBytes(fifoBuffer, packetSize);
         fifoCount -= packetSize;
-      #ifdef OUTPUT_READABLE_EULER
+        
+#ifdef OUTPUT_READABLE_EULER
 // display Euler angles in degrees
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetEuler(euler, &q);
@@ -276,9 +276,9 @@ void loop() {
           Serial.print(euler[1] * 180/M_PI);
           Serial.print(F("\t"));
           Serial.println(euler[2] * 180/M_PI);
-      #endif
+#endif
 
-      #ifdef OUTPUT_READABLE_YAWPITCHROLL
+#ifdef OUTPUT_READABLE_YAWPITCHROLL
 // display Euler angles in degrees
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetGravity(&gravity, &q);
@@ -302,19 +302,19 @@ void loop() {
           }
 // After 300 readings
           else {
-            ypr[0] = ypr[0] - correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
+              ypr[0] = ypr[0] - correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
 // Map the values of the MPU6050 sensor from -90 to 90 to values suatable for the servo control from 0 to 180
-            int servo0Value = map(ypr[0], -90, 90, 0, 180);
-            int servo1Value = map(ypr[1], -90, 90, 0, 180);
-            int servo2Value = map(ypr[2], -90, 90, 180, 0);
+              int servo0Value = map(ypr[0], -90, 90, 0, 180);
+              int servo1Value = map(ypr[1], -90, 90, 0, 180);
+              int servo2Value = map(ypr[2], -90, 90, 180, 0);
             
 // Control the servos according to the MPU6050 orientation
-            servo_y.write(servo0Value);
-            servo_p.write(servo1Value);
-            servo_r.write(servo2Value);          
-      #endif
+              servo_y.write(servo0Value);
+              servo_p.write(servo1Value);
+              servo_r.write(servo2Value);          
+#endif  // OUTPUT_READABLE_EULER
 
-      #ifdef OUTPUT_READABLE_REALACCEL
+#ifdef OUTPUT_READABLE_REALACCEL
 // display real acceleration, adjusted to remove gravity
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetAccel(&aa, fifoBuffer);
@@ -326,9 +326,9 @@ void loop() {
           Serial.print(aaReal.y);
           Serial.print("\t");
           Serial.println(aaReal.z);
-      #endif
+#endif  // OUTPUT_READABLE_REALACCEL
 
-      #ifdef OUTPUT_READABLE_WORLDACCEL
+#ifdef OUTPUT_READABLE_WORLDACCEL
 // display initial world-frame acceleration, adjusted to remove gravity and rotated based on known orientation from quaternion
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetAccel(&aa, fifoBuffer);
@@ -341,7 +341,7 @@ void loop() {
           Serial.print(aaWorld.y);
           Serial.print("\t");
           Serial.println(aaWorld.z);
-      #endif
+#endif  // OUTPUT_READABLE_WORLDACCEL
   
 // blink LED to indicate activity
       blinkState = !blinkState;
@@ -422,5 +422,5 @@ void loop() {
     if ((millis() - syncTime) < SYNC_INTERVAL) return;
     syncTime = millis();
     logfile.flush();
-  }
+    }
 }
