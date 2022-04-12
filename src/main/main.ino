@@ -1,15 +1,11 @@
 /*Combined Logging and Gimbal Firmware
- * Flow:
- * 3) Do gimbal stuff
- * 4) Make code for locking gimbal 
- * 5) Do camera stuff
- * 
  * Pin List:
  * 
  *            |            Description          |
  * Pin  13    |   MPU status                    |
  * pIN  12    |   DMP Init Status               |
  * Pin  02    |   MPU Interrupt Pin             |
+ * pin  03    |   Toggle Pin                    |
  * Pin  A4    |   MPU SDA                       |
  * Pin  A5    |   MPU SCL                       |
  * Pin  10    |   DataLogger Shield ChipSelect  |
@@ -35,15 +31,6 @@
 #include <Servo.h>
 
 // ========================   MPU initialisation              ======================== //
-/*
-Notes, delete when used in final
-uncomment "OUTPUT_READABLE_REALACCEL" if you want to see acceleration components with gravity removed. This acceleration reference frame is not compensated for orientation, so +X is always +X according to the sensor, just without the effects of gravity. If you want acceleration compensated for orientation, us OUTPUT_READABLE_WORLDACCEL instead.
-#define OUTPUT_READABLE_REALACCEL
-
-uncomment "OUTPUT_READABLE_WORLDACCEL" if you want to see acceleration components with gravity removed and adjusted for the world frame of reference (yaw is relative to initial orientation, since no magnetometer is present in this case). Could be quite handy in some cases.
-#define OUTPUT_READABLE_WORLDACCEL
-*/
-
 MPU6050 mpu (0x69);
 #define OUTPUT_READABLE_YAWPITCHROLL      // to see the yaw/ pitch/roll angles (in degrees) calculated from the quaternions coming from the FIFO.
 #define INTERRUPT_PIN 2                   // use pin 2 on Arduino Uno & most boards
@@ -100,6 +87,17 @@ Servo servo_r;
 int j=0;
 float correct;
 
+// ========================     Toggle Initialisation    ======================== //
+volatile boolean lock_flag;
+#define TOGGLE_PIN 3
+void GIMBAL_LOCK(){
+  if (digitalRead(TOGGLE_PIN)==HIGH){
+    lock_flag=true;
+  }else{
+    lock_flag=false;
+  }
+}
+
 void setup() {
 // ========================       Serial Setup          ======================== //
   Serial.begin(115200);                   // Change to project baud rate
@@ -115,7 +113,7 @@ digitalWrite(DMP_PIN,LOW);
 // join I2C bus
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     Wire.begin();
-    Wire.setClock(40000);                // 40kHz I2C clock
+    //Wire.setClock(40000);                //uncommented due to stability issues
     
   #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
     Fastwire::setup(400,true) 
@@ -138,10 +136,10 @@ digitalWrite(DMP_PIN,LOW);
   devStatus = mpu.dmpInitialize();
 
 // ***** GYRO OFFSET HERE! ***** 
-  mpu.setXGyroOffset(220);
-  mpu.setYGyroOffset(76);
-  mpu.setZGyroOffset(-85);
-  mpu.setZAccelOffset(1788);
+  mpu.setXGyroOffset(17);
+  mpu.setYGyroOffset(-69);
+  mpu.setZGyroOffset(27);
+  mpu.setZAccelOffset(1551);
   
 // Verify MPU set up works
   if (devStatus == 0) {
@@ -233,6 +231,9 @@ pinMode(LED_PIN, OUTPUT);
   servo_y.attach(11);
   servo_p.attach(9);
   servo_r.attach(8);
+
+// ========================     Toggle Set Up      ========================//
+attachInterrupt(1,GIMBAL_LOCK , CHANGE);
 }
 
 void loop() {
@@ -289,29 +290,38 @@ void loop() {
           Serial.print(ypr[1] * 180/M_PI);
           Serial.print(F("\t"));
           Serial.println(ypr[2] * 180/M_PI);
-// ========================     Gimbal Implementation Here     ========================//
-// Yaw, Pitch, Roll values - Radians to degrees
-          ypr[0] = ypr[0] * 180 / M_PI;
-          ypr[1] = ypr[1] * 180 / M_PI;
-          ypr[2] = ypr[2] * 180 / M_PI;
-          
-// Skip 300 readings (self-calibration process)
-          if (j <= 300) {
-            correct = ypr[0]; // Yaw starts at random value, so we capture last value after 300 readings
-            j++;
+// ========================     Gimbal Implementation Here     ========================// 
+// Lock gimbal if toggle is high
+          if (lock_flag==true) {
+              servo_y.write(90);
+              servo_p.write(90);
+              servo_r.write(90);
           }
-// After 300 readings
+// Else continue with gimbal operation
           else {
-            ypr[0] = ypr[0] - correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
+            // Yaw, Pitch, Roll values - Radians to degrees
+            ypr[0] = ypr[0] * 180 / M_PI;
+            ypr[1] = ypr[1] * 180 / M_PI;
+            ypr[2] = ypr[2] * 180 / M_PI;
+            if (j <= 300){
+// Skip 300 readings for calibration process
+              correct = ypr[0]; // Yaw starts at random value, so we capture last value after 300 readings
+              j++;
+            }else{
+              ypr[0] = ypr[0] - correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
 // Map the values of the MPU6050 sensor from -90 to 90 to values suatable for the servo control from 0 to 180
-            int servo0Value = map(ypr[0], -90, 90, 0, 180);
-            int servo1Value = map(ypr[1], -90, 90, 0, 180);
-            int servo2Value = map(ypr[2], -90, 90, 180, 0);
-            
+//** MAP NEED TO BE CHANGED ACCORDINGLY
+
+              int servo0Value = map(ypr[0], -90, 90, 0, 180);
+              int servo1Value = map(ypr[1], -90, 90, 0, 180);
+              int servo2Value = map(ypr[2], -90, 90, 180, 0);
+              
 // Control the servos according to the MPU6050 orientation
-            servo_y.write(servo0Value);
-            servo_p.write(servo1Value);
-            servo_r.write(servo2Value);          
+              servo_y.write(servo0Value);
+              servo_p.write(servo1Value);
+              servo_r.write(servo2Value); 
+            }
+                     
       #endif
 
       #ifdef OUTPUT_READABLE_REALACCEL

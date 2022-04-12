@@ -82,7 +82,7 @@ void setup() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
   Wire.begin();
-  Wire.setClock(400000); // 400kHz I2C clock. Comment this line if having compilation difficulties
+  //Wire.setClock(400000); // 400kHz I2C clock. Comment this line if having compilation difficulties
 #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
   Fastwire::setup(400, true);
 #endif
@@ -107,7 +107,7 @@ void setup() {
   // make sure it worked (returns 0 if so)
   if (devStatus == 0) {
     // turn on the DMP, now that it's ready
-    // Serial.println(F("Enabling DMP..."));
+    Serial.println(F("Enabling DMP..."));
     mpu.setDMPEnabled(true);
 
     attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
@@ -130,7 +130,7 @@ void setup() {
   }
 
   // Define the pins to which the 3 servo motors are connected
-  servo0.attach(10);
+  servo0.attach(11);
   servo1.attach(9);
   servo2.attach(8);
 }
@@ -196,8 +196,11 @@ void loop() {
     
     // Control the servos according to the MPU6050 orientation
     servo0.write(servo0Value);
+    Serial.println(servo0Value);
     servo1.write(servo1Value);
+    Serial.println(servo1Value);
     servo2.write(servo2Value);
+    Serial.println(servo2Value);
     }
 #endif
 }
