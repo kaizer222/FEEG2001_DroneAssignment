@@ -1,9 +1,9 @@
-/*Combined Logging and Gimbal Firmware
- * Pin List:
- * 
- *            |            Description          |
+/* ===   Combined Logging and Gimbal Firmware   ===
+ *
+ * Pin  No.   |            Description          |
+ * ==============================================
  * Pin  13    |   MPU status                    |
- * pIN  12    |   DMP Init Status               |
+ * Pin  12    |   DMP Init Status               |
  * Pin  02    |   MPU Interrupt Pin             |
  * pin  03    |   Toggle Pin                    |
  * Pin  A4    |   MPU SDA                       |
@@ -14,12 +14,12 @@
  * Pin  8     |   Roll Servo                    |
  */
 
-// ========================   MPU required libraries          ======================== //
+// ========================   MPU required libraries    ======================== //
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
-//#include "MPU6050.h"
+// #include "MPU6050.h"
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-  #include <Wire.h>
+    #include <Wire.h>
 #endif
 
 
@@ -38,7 +38,7 @@ MPU6050 mpu (0x69);
 #define DMP_PIN 12                        // DMP init status pin
 bool blinkState = false; 
 
-//MPU control/status variables
+// MPU control/status variables
 bool dmpReady = false;                    // set true if DMP init was successful
 uint8_t mpuIntStatus;                     // holds actual interrupt status byte from MPU
 uint8_t devStatus;                        // return status after each device operation (0 = success, !0 = error)
@@ -46,7 +46,7 @@ uint16_t packetSize;                      // expected DMP packet size (default i
 uint16_t fifoCount;                       // count of all bytes currently in FIFO
 uint8_t fifoBuffer[64];                   // FIFO storage buffer
 
-//orientation/motion variables
+// Orientation/motion variables
 Quaternion q;                             // [w, x, y, z]         quaternion container
 VectorInt16 aa;                           // [x, y, z]            accel sensor measurements
 VectorInt16 aaReal;                       // [x, y, z]            gravity-free accel sensor measurements
@@ -62,7 +62,6 @@ void dmpDataReady() {
 }
 
 // ======================== DataLogger Initialisation   ======================== //
-/* how many milliseconds between grabbing data and logging it */
 #define LOG_INTERVAL 1000                 // how many milliseconds between grabbing data and logging it. mills between entries (reduce to take more/faster data)
 #define SYNC_INTERVAL 1000                // mills between calls to flush() - to write data to the card
 uint32_t syncTime = 0;                    // time of last sync()
@@ -70,10 +69,17 @@ uint32_t syncTime = 0;                    // time of last sync()
 #define WAIT_TO_START                     // wait for serial input in setup()
 const int chipSelect = 10;                // for the data logging shield, use digital pin 10
 
+// For debugging use
+#define DEBUG {\
+    Serial.print("\nDEBUG: LINE ");\
+    Serial.println(__LINE__);\
+}
+
+// Print error to serial monitor
 #define cerr(x) {\
-    Serial.print(F("ERROR: "));\
+    Serial.print("\nERROR: ");\
     Serial.println(x);\
-    Serial.println(F("Please reset/restart the program."));\
+    Serial.println("Please reset/restart the program.");\
     while(true);\
 }
 
@@ -84,70 +90,66 @@ RTC_DS1307 RTC;
 Servo servo_y;
 Servo servo_p;
 Servo servo_r;
-int j=0;
+int j = 0;
 float correct;
 
 // ========================     Toggle Initialisation    ======================== //
-volatile boolean lock_flag;
+volatile bool lock_flag;
 #define TOGGLE_PIN 3
 volatile int pwm_value = 0;
 volatile int prev_time = 0;
 
 void rising() {
-  attachInterrupt(0, falling, FALLING);
-  prev_time = micros();
+    attachInterrupt(0, falling, FALLING);
+    prev_time = micros();
 }
  
 void falling() {
-  attachInterrupt(0, rising, RISING);
-  pwm_value = micros()-prev_time;
-  Serial.println(pwm_value);
-  if (pwm_value<900){
-    lock_flag=true;
-  }
-  else if(pwm_value>2000){
-    lock_flag=false;
-  }
-  else{
-    //donothing
-  }
+    attachInterrupt(0, rising, RISING);
+    pwm_value = micros() - prev_time;
+    Serial.println(pwm_value);
+    if (pwm_value < 900){
+        lock_flag = true;
+    }
+    else if (pwm_value > 2000){
+        lock_flag = false;
+    }
 }
 
 
 void setup() {
 // ========================       Serial Setup          ======================== //
-  Serial.begin(115200);                   // Change to project baud rate
-  while (!Serial);                        // wait for Leonardo enumeration, others continue immediately
-  Serial.print(F("Current date: "));
-  Serial.println(__DATE__);
-  Serial.print(F("Current time: "));
-  Serial.println(__TIME__);
+    Serial.begin(115200);                   // Change to project baud rate
+    Serial.print(F("Current date: "));
+    Serial.println(__DATE__);
+    Serial.print(F("Current time: "));
+    Serial.println(__TIME__);
   
 // ========================         MPU Setup           ========================//
-pinMode (DMP_PIN,OUTPUT);
-digitalWrite(DMP_PIN,LOW);
-// join I2C bus
-  #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-    Wire.begin();
-    //Wire.setClock(40000);                //uncommented due to stability issues
+    pinMode(DMP_PIN, OUTPUT);
+    digitalWrite(DMP_PIN, LOW);
+// Join I2C bus
+    #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+        Wire.begin();
+        // Wire.setClock(40000);  // commented due to stability issues
     
-  #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-    Fastwire::setup(400,true) 
-  #endif
+    #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+        Fastwire::setup(400, true);
+    #endif
 
-//Initialise MPU device
+// Initialise MPU device
   Serial.println(F("Initialising I2C devices..."));
   mpu.initialize();
   pinMode(INTERRUPT_PIN, INPUT);
 
-//verify connection
+// Verify connection
   Serial.println(F("Testing device connections..."));
   Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
-//empty buffer
+// Empty buffer
   while (Serial.available() && Serial.read());
 
-//load and configure DMP
+// Load and configure DMP
   Serial.println(F("Initializing DMP..."));
   devStatus = mpu.dmpInitialize();
 
@@ -160,22 +162,22 @@ digitalWrite(DMP_PIN,LOW);
 // Verify MPU set up works
   if (devStatus == 0) {
 // Calibration Time: generate offsets and calibrate our MPU6050
-    //mpu.CalibrateAccel(6);
-    //mpu.CalibrateGyro(6);
-    //mpu.PrintActiveOffsets();
+    // mpu.CalibrateAccel(6);
+    // mpu.CalibrateGyro(6);
+    // mpu.PrintActiveOffsets();
     
-// turn on the DMP, now that it's ready
+// Turn on the DMP, now that it's ready
     Serial.println(F("Enabling DMP..."));
     mpu.setDMPEnabled(true);
 
-// enable Arduino interrupt detection
+// Enable Arduino interrupt detection
     Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
     Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
     Serial.println(F(")..."));
     attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
     mpuIntStatus = mpu.getIntStatus();
 
-// set our DMP Ready flag so the main loop() function knows it's okay to use it
+// Set our DMP Ready flag so the main loop() function knows it's okay to use it
     Serial.println(F("DMP ready! Waiting for first interrupt..."));
     dmpReady = true;
 
@@ -192,7 +194,7 @@ digitalWrite(DMP_PIN,LOW);
     digitalWrite(DMP_PIN,HIGH);
   } 
 
-// configure LED for output
+// Configure LED for output
 pinMode(LED_PIN, OUTPUT);
 
 // ========================       DataLogger Setup    ========================//
@@ -212,7 +214,7 @@ pinMode(LED_PIN, OUTPUT);
   for (int i = 0; i < 100; i++) {
     filename[6] = i/10 + '0';
     filename[7] = i%10 + '0';
-// only open a new file if it doesn't exist
+// Only open a new file if it doesn't exist
     if (!SD.exists(filename)) {
       logfile = SD.open(filename, FILE_WRITE); 
       break;  // leave the loop
@@ -235,7 +237,7 @@ pinMode(LED_PIN, OUTPUT);
 #endif  //ECHO_TO_SERIAL
   }
 
-  logfile.println("millis,unix_stamp,datetime,x,y,z");  
+  logfile.println("millis,unix_stamp,datetime,x,y,z");  // CSV format
 #ifdef ECHO_TO_SERIAL
   Serial.println(F("millis,unix_stamp,datetime,x,y,z"));
 #endif  //ECHO_TO_SERIAL
@@ -249,15 +251,15 @@ pinMode(LED_PIN, OUTPUT);
   servo_r.attach(8);
 
 // ========================     Toggle Set Up      ========================//
-attachInterrupt(1,rising , RISING);
+attachInterrupt(1, rising, RISING);
 }
 
 void loop() {
 // ========================     MPU Main Loop     ========================//
-// if programming failed, don't try to do anything
+// If programming failed, don't try to do anything
   if (!dmpReady) return;
-// read a packet from FIFO
-// wait for MPU interrupt or extra packet(s) available
+// Read a packet from FIFO
+// Wait for MPU interrupt or extra packet(s) available
     while (!mpuInterrupt && fifoCount < packetSize) {
         if (mpuInterrupt && fifoCount < packetSize) {                     // try to get out of the infinite loop 
           fifoCount = mpu.getFIFOCount();
@@ -284,7 +286,7 @@ void loop() {
         mpu.getFIFOBytes(fifoBuffer, packetSize);
         fifoCount -= packetSize;
       #ifdef OUTPUT_READABLE_EULER
-// display Euler angles in degrees
+// Display Euler angles in degrees
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetEuler(euler, &q);
           Serial.print(F("euler\t"));
@@ -308,13 +310,13 @@ void loop() {
           Serial.println(ypr[2] * 180/M_PI);
 // ========================     Gimbal Implementation Here     ========================// 
 // Lock gimbal if toggle is high
-          if (lock_flag==true) {
+          if (lock_flag) {
               servo_y.write(90);
               servo_p.write(90);
               servo_r.write(90);
           }
 // Else continue with gimbal operation
-          else if (lock_flag==false){
+          else {
             // Yaw, Pitch, Roll values - Radians to degrees
             ypr[0] = ypr[0] * 180 / M_PI;
             ypr[1] = ypr[1] * 180 / M_PI;
@@ -323,7 +325,7 @@ void loop() {
 // Skip 300 readings for calibration process
               correct = ypr[0]; // Yaw starts at random value, so we capture last value after 300 readings
               j++;
-            }else{
+            } else {
               ypr[0] = ypr[0] - correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
 // Map the values of the MPU6050 sensor from -90 to 90 to values suatable for the servo control from 0 to 180
 //** MAP NEED TO BE CHANGED ACCORDINGLY
@@ -338,14 +340,11 @@ void loop() {
               servo_r.write(servo2Value); 
             }
           }
-          else{
-            //donothing
-          }
-                     
-      #endif
+
+      #endif  // OUTPUT_READABLE_YAWPITCHROLL
 
       #ifdef OUTPUT_READABLE_REALACCEL
-// display real acceleration, adjusted to remove gravity
+// Display real acceleration, adjusted to remove gravity
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetAccel(&aa, fifoBuffer);
           mpu.dmpGetGravity(&gravity, &q);
@@ -359,7 +358,7 @@ void loop() {
       #endif
 
       #ifdef OUTPUT_READABLE_WORLDACCEL
-// display initial world-frame acceleration, adjusted to remove gravity and rotated based on known orientation from quaternion
+// Display initial world-frame acceleration, adjusted to remove gravity and rotated based on known orientation from quaternion
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetAccel(&aa, fifoBuffer);
           mpu.dmpGetGravity(&gravity, &q);
@@ -373,7 +372,7 @@ void loop() {
           Serial.println(aaWorld.z);
       #endif
   
-// blink LED to indicate activity
+// Blink LED to indicate activity
       blinkState = !blinkState;
       digitalWrite(LED_PIN, blinkState);
   }
@@ -381,7 +380,7 @@ void loop() {
     DateTime now;
 
     // Delay for the amount of time we want between readings
-    delay((LOG_INTERVAL ) - (millis() % LOG_INTERVAL));
+    delay(LOG_INTERVAL - (millis() % LOG_INTERVAL));
 
     // Log milliseconds since starting
     uint32_t m = millis();
@@ -394,7 +393,7 @@ void loop() {
 
     // Fetch the time
     now = RTC.now();
-    // log time
+    // Log the time
     logfile.print(now.unixtime());  // seconds since 1/1/1970
     logfile.print(", ");
     logfile.print('"');
@@ -442,7 +441,7 @@ void loop() {
     Serial.print(ypr[1] * 180/M_PI);
     Serial.print("\t");
     Serial.println(ypr[2] * 180/M_PI);
-#endif // ECHO_TO_SERIAL
+#endif  // ECHO_TO_SERIAL
 
     logfile.println();
 #ifdef ECHO_TO_SERIAL
@@ -452,4 +451,4 @@ void loop() {
     if ((millis() - syncTime) < SYNC_INTERVAL) return;
     syncTime = millis();
     logfile.flush();
-  }
+}
