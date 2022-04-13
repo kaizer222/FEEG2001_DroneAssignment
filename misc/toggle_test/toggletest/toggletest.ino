@@ -11,6 +11,8 @@
 #define TOGGLE_PIN 3
 Servo servo_y, servo_p, servo_r;
 volatile boolean lock_flag;
+volatile int pwm_value = 0;
+volatile int prev_time = 0;
 
 void setup() {
   servo_y.attach(11);
@@ -19,23 +21,35 @@ void setup() {
   
   Serial.begin(115200);
   // when pin D3 changes, call the gimbal locker funtion
-  attachInterrupt(0,gimbal_locker , CHANGE);
+  attachInterrupt(0, rising, RISING);
 }
- 
+
 void loop() {
-  if (lock_flag==true){
-    servo_y.write(90);
-    servo_p.write(90);
-    servo_q.write(90);
+  if(lock_flag==true){
+    Serial.println("LOCKED");
+  }else if(lock_flag==false){
+    Serial.println("UNLOCKED");
   }else{
-    //do gimbal stuff
+    //donothing
   }
 }
  
-void gimbal_locker() {
-  if(digitalRead(TOGGLE_PIN) == HIGH){
-    lock_flag=true; 
-  }else{
+void rising() {
+  attachInterrupt(0, falling, FALLING);
+  prev_time = micros();
+}
+ 
+void falling() {
+  attachInterrupt(0, rising, RISING);
+  pwm_value = micros()-prev_time;
+  Serial.println(pwm_value);
+  if (pwm_value<900){
+    lock_flag=true;
+  }
+  else if(pwm_value>2000){
     lock_flag=false;
+  }
+  else{
+    //donothing
   }
 }

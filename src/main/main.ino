@@ -90,13 +90,29 @@ float correct;
 // ========================     Toggle Initialisation    ======================== //
 volatile boolean lock_flag;
 #define TOGGLE_PIN 3
-void GIMBAL_LOCK(){
-  if (digitalRead(TOGGLE_PIN)==HIGH){
+volatile int pwm_value = 0;
+volatile int prev_time = 0;
+
+void rising() {
+  attachInterrupt(0, falling, FALLING);
+  prev_time = micros();
+}
+ 
+void falling() {
+  attachInterrupt(0, rising, RISING);
+  pwm_value = micros()-prev_time;
+  Serial.println(pwm_value);
+  if (pwm_value<900){
     lock_flag=true;
-  }else{
+  }
+  else if(pwm_value>2000){
     lock_flag=false;
   }
+  else{
+    //donothing
+  }
 }
+
 
 void setup() {
 // ========================       Serial Setup          ======================== //
@@ -233,7 +249,7 @@ pinMode(LED_PIN, OUTPUT);
   servo_r.attach(8);
 
 // ========================     Toggle Set Up      ========================//
-attachInterrupt(1,GIMBAL_LOCK , CHANGE);
+attachInterrupt(1,rising , RISING);
 }
 
 void loop() {
@@ -298,7 +314,7 @@ void loop() {
               servo_r.write(90);
           }
 // Else continue with gimbal operation
-          else {
+          else if (lock_flag==false){
             // Yaw, Pitch, Roll values - Radians to degrees
             ypr[0] = ypr[0] * 180 / M_PI;
             ypr[1] = ypr[1] * 180 / M_PI;
@@ -321,6 +337,10 @@ void loop() {
               servo_p.write(servo1Value);
               servo_r.write(servo2Value); 
             }
+          }
+          else{
+            //donothing
+          }
                      
       #endif
 
@@ -433,4 +453,3 @@ void loop() {
     syncTime = millis();
     logfile.flush();
   }
-}
