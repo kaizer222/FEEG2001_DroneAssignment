@@ -27,7 +27,7 @@ void setup() {
 void loop() {
   if(lock_flag==true){
     Serial.println("LOCKED");
-  }else if(lock_flag==false){
+  }elif(lock_flag==false){
     Serial.println("UNLOCKED");
   }else{
     //donothing
