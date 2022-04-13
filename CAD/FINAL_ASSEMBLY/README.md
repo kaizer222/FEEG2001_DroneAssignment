@@ -1,7 +1,6 @@
 # ✈ Final Assembly  
 
 CAD models and drawings for the final report appendix section. SolidWorks **2021-22** Student Edition.  
-Yet to be modelled: electronics and tray
 
 **Note: Please save/clone the folder in the root C:/ directory otherwise the assembly file might be corrupt**  
  
