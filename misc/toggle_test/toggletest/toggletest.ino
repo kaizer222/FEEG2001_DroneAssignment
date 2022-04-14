@@ -21,13 +21,13 @@ void setup() {
   
   Serial.begin(115200);
   // when pin D3 changes, call the gimbal locker funtion
-  attachInterrupt(0, rising, RISING);
+  attachInterrupt(1, rising, RISING);
 }
 
 void loop() {
   if(lock_flag==true){
     Serial.println("LOCKED");
-  }elif(lock_flag==false){
+  }else if(lock_flag==false){
     Serial.println("UNLOCKED");
   }else{
     //donothing
@@ -35,12 +35,12 @@ void loop() {
 }
  
 void rising() {
-  attachInterrupt(0, falling, FALLING);
+  attachInterrupt(1, falling, FALLING);
   prev_time = micros();
 }
  
 void falling() {
-  attachInterrupt(0, rising, RISING);
+  attachInterrupt(1, rising, RISING);
   pwm_value = micros()-prev_time;
   Serial.println(pwm_value);
   if (pwm_value<900){

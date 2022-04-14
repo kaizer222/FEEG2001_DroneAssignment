@@ -65,7 +65,7 @@ void dmpDataReady() {
 #define LOG_INTERVAL 1000                 // how many milliseconds between grabbing data and logging it. mills between entries (reduce to take more/faster data)
 #define SYNC_INTERVAL 1000                // mills between calls to flush() - to write data to the card
 uint32_t syncTime = 0;                    // time of last sync()
-#define ECHO_TO_SERIAL                    // Echo data to serial port
+//#define ECHO_TO_SERIAL                    // Echo data to serial port
 #define WAIT_TO_START                     // wait for serial input in setup()
 const int chipSelect = 10;                // for the data logging shield, use digital pin 10
 
@@ -100,14 +100,14 @@ volatile int pwm_value = 0;
 volatile int prev_time = 0;
 
 void rising() {
-    attachInterrupt(0, falling, FALLING);
+    attachInterrupt(1, falling, FALLING);
     prev_time = micros();
 }
  
 void falling() {
-    attachInterrupt(0, rising, RISING);
+    attachInterrupt(1, rising, RISING);
     pwm_value = micros() - prev_time;
-    Serial.println(pwm_value);
+    //Serial.println(pwm_value);
     if (pwm_value < 900){
         lock_flag = true;
     }
@@ -131,7 +131,7 @@ void setup() {
 // Join I2C bus
     #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.begin();
-        // Wire.setClock(40000);  // commented due to stability issues
+        Wire.setClock(160000);  // commented due to stability issues
     
     #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
         Fastwire::setup(400, true);
@@ -145,9 +145,6 @@ void setup() {
 // Verify connection
   Serial.println(F("Testing device connections..."));
   Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
-
-// Empty buffer
-  while (Serial.available() && Serial.read());
 
 // Load and configure DMP
   Serial.println(F("Initializing DMP..."));
@@ -342,45 +339,11 @@ void loop() {
           }
 
       #endif  // OUTPUT_READABLE_YAWPITCHROLL
-
-      #ifdef OUTPUT_READABLE_REALACCEL
-// Display real acceleration, adjusted to remove gravity
-          mpu.dmpGetQuaternion(&q, fifoBuffer);
-          mpu.dmpGetAccel(&aa, fifoBuffer);
-          mpu.dmpGetGravity(&gravity, &q);
-          mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-          Serial.print("areal\t");
-          Serial.print(aaReal.x);
-          Serial.print("\t");
-          Serial.print(aaReal.y);
-          Serial.print("\t");
-          Serial.println(aaReal.z);
-      #endif
-
-      #ifdef OUTPUT_READABLE_WORLDACCEL
-// Display initial world-frame acceleration, adjusted to remove gravity and rotated based on known orientation from quaternion
-          mpu.dmpGetQuaternion(&q, fifoBuffer);
-          mpu.dmpGetAccel(&aa, fifoBuffer);
-          mpu.dmpGetGravity(&gravity, &q);
-          mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-          mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-          Serial.print("aworld\t");
-          Serial.print(aaWorld.x);
-          Serial.print("\t");
-          Serial.print(aaWorld.y);
-          Serial.print("\t");
-          Serial.println(aaWorld.z);
-      #endif
-  
-// Blink LED to indicate activity
       blinkState = !blinkState;
       digitalWrite(LED_PIN, blinkState);
   }
 
     DateTime now;
-
-    // Delay for the amount of time we want between readings
-    delay(LOG_INTERVAL - (millis() % LOG_INTERVAL));
 
     // Log milliseconds since starting
     uint32_t m = millis();
@@ -447,8 +410,5 @@ void loop() {
 #ifdef ECHO_TO_SERIAL
     Serial.println();
 #endif // ECHO_TO_SERIAL
-
-    if ((millis() - syncTime) < SYNC_INTERVAL) return;
-    syncTime = millis();
     logfile.flush();
 }
