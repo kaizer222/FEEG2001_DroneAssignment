@@ -25,7 +25,6 @@
 // ========================   Data logger required libraries  ======================== //
 #include "RTClib.h"
 #include "SD.h"
-#include <SPI.h>
 // ========================   Gimbal required libraries       ======================== //
 #include <Servo.h>
 
@@ -63,9 +62,9 @@ void dmpDataReady() {
 
 //#define ECHO_TO_SERIAL                    // Echo data to serial port
 #define WAIT_TO_START                     // wait for serial input in setup()
-#define LOGGING                           //for logging packet
 const int chipSelect = 10;                // for the data logging shield, use digital pin 10
 
+DateTime now;
 // For debugging use
 
 #define DEBUG {\
@@ -81,11 +80,11 @@ const int chipSelect = 10;                // for the data logging shield, use di
     while(true);\
 }
 
-
-uint32_t startMillis;  //some global variables available anywhere in the program
-uint32_t currentMillis;
-const uint32_t period = 1000; 
-uint8_t logPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
+File logfile;
+RTC_DS1307 RTC;
+unsigned long startMillis;  //some global variables available anywhere in the program
+unsigned long currentMillis;
+const unsigned long period = 5000; 
 // ========================   Servo Initialisation      ======================== //
 Servo servo_y;
 Servo servo_p;
@@ -185,7 +184,7 @@ void setup() {
     //Serial.print(F("DMP Initialization failed (code "));
     //Serial.print(devStatus);
     //Serial.println(F(")."));
-} 
+  } 
 
 // Configure LED for output
 pinMode(LED_PIN, OUTPUT);
@@ -194,8 +193,8 @@ pinMode(LED_PIN, OUTPUT);
 
 // Initialise the SD card
   //Serial.println(F("Initialising SD card..."));                               // make sure that the default chip select pin is set to output, even if you don't use it:
-pinMode(10, OUTPUT);
-/*
+  pinMode(10, OUTPUT);
+
 // See if the card is present and can be initialised:
   if (!SD.begin(chipSelect)) {
       //cerr(F("Card failed or not present."));
@@ -203,7 +202,7 @@ pinMode(10, OUTPUT);
   //Serial.println(F("Card initialised."));
 
 // Create a new file
-  char filename[] = "LOGGER00.txt";
+  char filename[] = "LOGGER00.CSV";
   for (int i = 0; i < 100; i++) {
     filename[6] = i/10 + '0';
     filename[7] = i%10 + '0';
@@ -220,11 +219,28 @@ pinMode(10, OUTPUT);
 
   //Serial.print(F("Logging to: "));
   //Serial.println(filename);
-*/
+
+  // Connect to RTC
+  Wire.begin();  
+  if (!RTC.begin()) {
+      logfile.println("RTC failed");
+#ifdef ECHO_TO_SERIAL
+      //Serial.println(F("RTC failed"));
+#endif  //ECHO_TO_SERIAL
+  }
+
+  logfile.println("ms,Unix Timestamp,Yaw,Pitch,Roll,X,Y,Z");  // CSV format
+#ifdef ECHO_TO_SERIAL
+  //Serial.println(F("millis,unix_stamp,datetime,x,y,z"));
+#endif  //ECHO_TO_SERIAL
+
+  // If you want to set the AREF to something other than 5V
+  // analogReference(EXTERNAL);
+
 // ========================     Servo Set Up      ========================//
-servo_y.attach(11);
-servo_p.attach(9);
-servo_r.attach(8);
+  servo_y.attach(11);
+  servo_p.attach(9);
+  servo_r.attach(8);
 
 // ========================     Toggle Set Up      ========================//
 attachInterrupt(1, rising, RISING);
@@ -286,6 +302,7 @@ void loop() {
               j++;
             } else {
               byte servo0Value = map(ypr[0], -90, 90, 0, 180);
+              Serial.println(ypr[1]);
               byte servo1Value = map(ypr[1], -90, 90, 0, 180);
               byte servo2Value = map(ypr[2], -90, 90, 180, 0);
               
@@ -295,30 +312,33 @@ void loop() {
               servo_r.write(servo2Value); 
             }
           }
-          
 
       #endif  // OUTPUT_READABLE_YAWPITCHROLL
+      blinkState = !blinkState;
+      digitalWrite(LED_PIN, blinkState);
   }
-  
-  
-  #ifdef LOGGING
-      File logfile =SD.open("datafile.txt", FILE_WRITE);
-      float dataArray[]={ypr[0],ypr[1],ypr[2],aaReal.x,aaReal.y,aaReal.z};
-      String logString = "";
-      for (uint8_t i=0;i<6;i++){
-        logString+=String(dataArray[i]);
-        if (i<5){
-          logString+=",";
-        }
-      }
-      if (logfile){
-        logfile.println(logString);
-        
-        logfile.close();
-        Serial.println(logString);
-      } else{
-        Serial.println("error opening logfile.txt");
-        Serial.println(logString);
-      }
-    #endif  
+/*
+  currentMillis = millis();  //get the current "time" (actually the number of milliseconds since the program started)
+  if (currentMillis - startMillis >= period)  //test whether the period has elapsed
+  {
+    
+    logfile.print((uint8_t) ypr[0]);
+    logfile.print(',');
+    logfile.print((uint8_t) ypr[1]); 
+    logfile.print(',');
+    logfile.print((uint8_t) ypr[2]);
+    logfile.print(',');
+    logfile.print((uint8_t)aaReal.x);
+    logfile.print(',');
+    logfile.print((uint8_t)aaReal.y);
+    logfile.print(',');
+    logfile.print((uint8_t)aaReal.z);
+    logfile.print(','); 
+    logfile.print('\n');
+    logfile.flush();     
+    startMillis = currentMillis;  //IMPORTANT to save the start time of the current LED state.
+  }else{
+    //do nothing
+  }
+  */
 }
