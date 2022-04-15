@@ -10,8 +10,9 @@ Contribution:
 4) Troubleshooting	:	Kai Wen
 
 To do:
-1) LED indication lights
-2) System test
+1) 'Refresh' function implementation for DataLogging shield due to lagging after a few readings
+2) Reduce gimbal jittering
+3) Data logging formatting 
 
 Sources:
 1) Gimbal Code	: https://howtomechatronics.com/projects/diy-arduino-gimbal-self-stabilizing-platform/
