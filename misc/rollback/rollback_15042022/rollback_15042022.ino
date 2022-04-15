@@ -317,7 +317,7 @@ void loop() {
       blinkState = !blinkState;
       digitalWrite(LED_PIN, blinkState);
   }
-/*
+
   currentMillis = millis();  //get the current "time" (actually the number of milliseconds since the program started)
   if (currentMillis - startMillis >= period)  //test whether the period has elapsed
   {
@@ -340,5 +340,5 @@ void loop() {
   }else{
     //do nothing
   }
-  */
+
 }

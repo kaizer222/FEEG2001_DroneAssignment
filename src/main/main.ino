@@ -23,9 +23,9 @@
 
 
 // ========================   Data logger required libraries  ======================== //
+#include <SD.h>
+#include <Wire.h>
 #include "RTClib.h"
-#include "SD.h"
-#include <SPI.h>
 // ========================   Gimbal required libraries       ======================== //
 #include <Servo.h>
 
@@ -60,32 +60,28 @@ void dmpDataReady() {
 }
 
 // ======================== DataLogger Initialisation   ======================== //
+#define LOG_INTERVAL  1000
+#define SYNC_INTERVAL 1000 // mills between calls to flush() - to write data to the card
+uint32_t syncTime = 0; // time of last sync()
 
-//#define ECHO_TO_SERIAL                    // Echo data to serial port
-#define WAIT_TO_START                     // wait for serial input in setup()
-#define LOGGING                           //for logging packet
-const int chipSelect = 10;                // for the data logging shield, use digital pin 10
+#define ECHO_TO_SERIAL   0 // echo data to serial port
+#define WAIT_TO_START    0 // Wait for serial input in setup()
+RTC_DS1307 RTC; // define the Real Time Clock object
 
-// For debugging use
+// for the data logging shield, we use digital pin 10 for the SD cs line
+const int chipSelect = 10;
 
-#define DEBUG {\
-    Serial.print("\nDEBUG: LINE ");\
-    Serial.println(__LINE__);\
+// the logging file
+File logfile;
+
+void error(char *str)
+{
+  Serial.print("error: ");
+  Serial.println(str);
+  while(1);
+
 }
 
-// Print error to serial monitor
-#define cerr(x) {\
-    Serial.print("\nERROR: ");\
-    Serial.println(x);\
-    Serial.println("Please reset/restart the program.");\
-    while(true);\
-}
-
-
-uint32_t startMillis;  //some global variables available anywhere in the program
-uint32_t currentMillis;
-const uint32_t period = 1000; 
-uint8_t logPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
 // ========================   Servo Initialisation      ======================== //
 Servo servo_y;
 Servo servo_p;
@@ -194,33 +190,38 @@ pinMode(LED_PIN, OUTPUT);
 
 // Initialise the SD card
   //Serial.println(F("Initialising SD card..."));                               // make sure that the default chip select pin is set to output, even if you don't use it:
-pinMode(10, OUTPUT);
-/*
-// See if the card is present and can be initialised:
-  if (!SD.begin(chipSelect)) {
-      //cerr(F("Card failed or not present."));
-  }
-  //Serial.println(F("Card initialised."));
+    pinMode(10, OUTPUT);
 
+
+// See if the card is present and can be initialised:
+if (!SD.begin(chipSelect)) {
+    error("Card failed, or not present");
+  }
+  Serial.println("card initialized.");
+  
 // Create a new file
-  char filename[] = "LOGGER00.txt";
-  for (int i = 0; i < 100; i++) {
+  char filename[] = "LOGGER00.CSV";
+  for (uint8_t i = 0; i < 100; i++) {
     filename[6] = i/10 + '0';
     filename[7] = i%10 + '0';
-// Only open a new file if it doesn't exist
-    if (!SD.exists(filename)) {
+    if (! SD.exists(filename)) {
+      // only open a new file if it doesn't exist
       logfile = SD.open(filename, FILE_WRITE); 
-      break;  // leave the loop
-      }
+      break;  // leave the loop!
     }
-
-  if (!logfile) {
-      //cerr("Couldn't create file.");
+  }
+ 
+  if (! logfile) {
+    error("couldnt create file");
+  }
+  Wire.begin();  
+  if (!RTC.begin()) {
+    logfile.println("RTC failed");
   }
 
   //Serial.print(F("Logging to: "));
   //Serial.println(filename);
-*/
+
 // ========================     Servo Set Up      ========================//
 servo_y.attach(11);
 servo_p.attach(9);
@@ -229,11 +230,10 @@ servo_r.attach(8);
 // ========================     Toggle Set Up      ========================//
 attachInterrupt(1, rising, RISING);
 
-// ========================     TIMER START      ========================//
-startMillis = millis();
 }
 
 void loop() {
+
 // ========================     MPU Main Loop     ========================//
 // If programming failed, don't try to do anything
   if (!dmpReady) return;
@@ -300,25 +300,20 @@ void loop() {
       #endif  // OUTPUT_READABLE_YAWPITCHROLL
   }
   
-  
-  #ifdef LOGGING
-      File logfile =SD.open("datafile.txt", FILE_WRITE);
-      float dataArray[]={ypr[0],ypr[1],ypr[2],aaReal.x,aaReal.y,aaReal.z};
+    uint32_t m = millis();
+      
+      float dataArray[]={m,ypr[0],ypr[1],ypr[2],aaReal.x,aaReal.y,aaReal.z};
       String logString = "";
-      for (uint8_t i=0;i<6;i++){
+      for (uint8_t i=0;i<7;i++){
         logString+=String(dataArray[i]);
-        if (i<5){
+        if (i<6){
           logString+=",";
         }
       }
-      if (logfile){
-        logfile.println(logString);
-        
-        logfile.close();
-        Serial.println(logString);
-      } else{
-        Serial.println("error opening logfile.txt");
-        Serial.println(logString);
-      }
-    #endif  
+  Serial.println(logString);
+  if ((millis() - syncTime) < SYNC_INTERVAL) return;
+  syncTime = millis();
+  logfile.println(logString);
+  logfile.flush();
+
 }
