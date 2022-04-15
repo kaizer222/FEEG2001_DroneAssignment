@@ -71,15 +71,15 @@ const int chipSelect = 10;                // for the data logging shield, use di
 
 // For debugging use
 #define DEBUG {\
-    Serial.print("\nDEBUG: LINE ");\
+    Serial.print(F("\nDEBUG: LINE "));\
     Serial.println(__LINE__);\
 }
 
 // Print error to serial monitor
 #define cerr(x) {\
-    Serial.print("\nERROR: ");\
+    Serial.print(F("\nERROR: "));\
     Serial.println(x);\
-    Serial.println("Please reset/restart the program.");\
+    Serial.println(F("Please reset/restart the program."));\
     while(true);\
 }
 
@@ -87,9 +87,7 @@ File logfile;
 RTC_DS1307 RTC;
 
 // ========================   Servo Initialisation      ======================== //
-Servo servo_y;
-Servo servo_p;
-Servo servo_r;
+Servo servo_y, servo_p, servo_r;
 int j = 0;
 float correct;
 
@@ -107,7 +105,7 @@ void rising() {
 void falling() {
     attachInterrupt(1, rising, RISING);
     pwm_value = micros() - prev_time;
-    //Serial.println(pwm_value);
+    // Serial.println(pwm_value);
     if (pwm_value < 900){
         lock_flag = true;
     }
@@ -132,132 +130,135 @@ void setup() {
     #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.begin();
         Wire.setClock(160000);  // commented due to stability issues
-    
     #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
         Fastwire::setup(400, true);
     #endif
 
 // Initialise MPU device
-  Serial.println(F("Initialising I2C devices..."));
-  mpu.initialize();
-  pinMode(INTERRUPT_PIN, INPUT);
+    Serial.println(F("Initialising I2C devices..."));
+    mpu.initialize();
+    pinMode(INTERRUPT_PIN, INPUT);
 
 // Verify connection
-  Serial.println(F("Testing device connections..."));
-  Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
+    Serial.println(F("Testing device connections..."));
+    Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
 // Load and configure DMP
-  Serial.println(F("Initializing DMP..."));
-  devStatus = mpu.dmpInitialize();
+    Serial.println(F("Initializing DMP..."));
+    devStatus = mpu.dmpInitialize();
 
 // ***** GYRO OFFSET HERE! ***** 
-  mpu.setXGyroOffset(17);
-  mpu.setYGyroOffset(-69);
-  mpu.setZGyroOffset(27);
-  mpu.setZAccelOffset(1551);
+    mpu.setXGyroOffset(17);
+    mpu.setYGyroOffset(-69);
+    mpu.setZGyroOffset(27);
+    mpu.setZAccelOffset(1551);
   
 // Verify MPU set up works
-  if (devStatus == 0) {
+    if (devStatus == 0) {
 // Calibration Time: generate offsets and calibrate our MPU6050
     // mpu.CalibrateAccel(6);
     // mpu.CalibrateGyro(6);
     // mpu.PrintActiveOffsets();
     
 // Turn on the DMP, now that it's ready
-    Serial.println(F("Enabling DMP..."));
-    mpu.setDMPEnabled(true);
+        Serial.println(F("Enabling DMP..."));
+        mpu.setDMPEnabled(true);
 
 // Enable Arduino interrupt detection
-    Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
-    Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
-    Serial.println(F(")..."));
-    attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
-    mpuIntStatus = mpu.getIntStatus();
+        Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
+        Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
+        Serial.println(F(")..."));
+        attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
+        mpuIntStatus = mpu.getIntStatus();
 
 // Set our DMP Ready flag so the main loop() function knows it's okay to use it
-    Serial.println(F("DMP ready! Waiting for first interrupt..."));
-    dmpReady = true;
+        Serial.println(F("DMP ready! Waiting for first interrupt..."));
+        dmpReady = true;
 
 // get expected DMP packet size for later comparison
-    packetSize = mpu.dmpGetFIFOPacketSize();} 
-  else {
+    packetSize = mpu.dmpGetFIFOPacketSize();
+    } else {
 // ERROR!
 // 1 = initial memory load failed
 // 2 = DMP configuration updates failed
 // (if it's going to break, usually the code will be 1)
-    Serial.print(F("DMP Initialization failed (code "));
-    Serial.print(devStatus);
-    Serial.println(F(")."));
-    digitalWrite(DMP_PIN,HIGH);
-  } 
+        Serial.print(F("DMP Initialization failed (code "));
+        Serial.print(devStatus);
+        Serial.println(F(")."));
+        digitalWrite(DMP_PIN,HIGH);
+    } 
 
 // Configure LED for output
-pinMode(LED_PIN, OUTPUT);
+    pinMode(LED_PIN, OUTPUT);
 
 // ========================       DataLogger Setup    ========================//
 
 // Initialise the SD card
-  Serial.println(F("Initialising SD card..."));                               // make sure that the default chip select pin is set to output, even if you don't use it:
-  pinMode(10, OUTPUT);
+    Serial.println(F("Initialising SD card..."));                               // make sure that the default chip select pin is set to output, even if you don't use it:
+    pinMode(10, OUTPUT);
 
 // See if the card is present and can be initialised:
-  if (!SD.begin(chipSelect)) {
-      cerr(F("Card failed or not present."));
-  }
-  Serial.println(F("Card initialised."));
+    if (!SD.begin(chipSelect)) {
+        cerr(F("Card failed or not present."));
+    }
+    Serial.println(F("Card initialised."));
 
 // Create a new file
-  char filename[] = "LOGGER00.CSV";
-  for (int i = 0; i < 100; i++) {
-    filename[6] = i/10 + '0';
-    filename[7] = i%10 + '0';
+    char filename[] = "LOGGER00.CSV";
+    for (int i = 0; i < 100; i++) {
+        filename[6] = i/10 + '0';
+        filename[7] = i%10 + '0';
 // Only open a new file if it doesn't exist
-    if (!SD.exists(filename)) {
-      logfile = SD.open(filename, FILE_WRITE); 
-      break;  // leave the loop
-      }
+        if (!SD.exists(filename)) {
+            logfile = SD.open(filename, FILE_WRITE); 
+            break;  // leave the loop
+        }
     }
 
-  if (!logfile) {
-      cerr("Couldn't create file.");
-  }
+    if (!logfile) {
+        cerr("Couldn't create file.");
+    }
 
-  Serial.print(F("Logging to: "));
-  Serial.println(filename);
+    Serial.print(F("Logging to: "));
+    Serial.println(filename);
 
   // Connect to RTC
-  Wire.begin();  
-  if (!RTC.begin()) {
-      logfile.println("RTC failed");
+    Wire.begin();  
+    if (!RTC.begin()) {
+        logfile.println("RTC failed");
 #ifdef ECHO_TO_SERIAL
-      Serial.println(F("RTC failed"));
+        Serial.println(F("RTC failed"));
 #endif  //ECHO_TO_SERIAL
-  }
+    }
 
-  logfile.println("millis,unix_stamp,datetime,x,y,z");  // CSV format
+    logfile.println("millis,unix_stamp,datetime,x,y,z");  // CSV format
 #ifdef ECHO_TO_SERIAL
-  Serial.println(F("millis,unix_stamp,datetime,x,y,z"));
+    Serial.println(F("millis,unix_stamp,datetime,x,y,z"));
 #endif  //ECHO_TO_SERIAL
 
   // If you want to set the AREF to something other than 5V
   // analogReference(EXTERNAL);
 
 // ========================     Servo Set Up      ========================//
-  servo_y.attach(11);
-  servo_p.attach(9);
-  servo_r.attach(8);
+    servo_y.attach(11);
+    servo_p.attach(9);
+    servo_r.attach(8);
 
 // ========================     Toggle Set Up      ========================//
-attachInterrupt(1, rising, RISING);
+    attachInterrupt(1, rising, RISING);
+
+// ========================     Boot time      ========================//
+    Serial.print(F("Boot time: "));
+    Serial.println(millis() / 1000);
 }
 
 void loop() {
 // ========================     MPU Main Loop     ========================//
 // If programming failed, don't try to do anything
-  if (!dmpReady) return;
+    if (!dmpReady) return;
 // Read a packet from FIFO
 // Wait for MPU interrupt or extra packet(s) available
-    while (!mpuInterrupt && fifoCount < packetSize) {
+    while ((!mpuInterrupt) && fifoCount < packetSize) {
         if (mpuInterrupt && fifoCount < packetSize) {                     // try to get out of the infinite loop 
           fifoCount = mpu.getFIFOCount();
         }                                                                 //if you are really paranoid you can frequently test in between other stuff to see if mpuInterrupt is true, and if so, "break;" from the while() loop to immediately process the MPU data
@@ -279,11 +280,10 @@ void loop() {
         while (fifoCount < packetSize) {
             fifoCount = mpu.getFIFOCount();
         }
-
         mpu.getFIFOBytes(fifoBuffer, packetSize);
         fifoCount -= packetSize;
-      #ifdef OUTPUT_READABLE_EULER
-// Display Euler angles in degrees
+
+#ifdef OUTPUT_READABLE_EULER  // Display Euler angles in degrees
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetEuler(euler, &q);
           Serial.print(F("euler\t"));
@@ -292,10 +292,9 @@ void loop() {
           Serial.print(euler[1] * 180/M_PI);
           Serial.print(F("\t"));
           Serial.println(euler[2] * 180/M_PI);
-      #endif
+#endif
 
-      #ifdef OUTPUT_READABLE_YAWPITCHROLL
-// display Euler angles in degrees
+#ifdef OUTPUT_READABLE_YAWPITCHROLL  // Display Euler angles in degrees
           mpu.dmpGetQuaternion(&q, fifoBuffer);
           mpu.dmpGetGravity(&gravity, &q);
           mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
@@ -305,43 +304,43 @@ void loop() {
           Serial.print(ypr[1] * 180/M_PI);
           Serial.print(F("\t"));
           Serial.println(ypr[2] * 180/M_PI);
+
 // ========================     Gimbal Implementation Here     ========================// 
 // Lock gimbal if toggle is high
           if (lock_flag) {
               servo_y.write(90);
               servo_p.write(90);
               servo_r.write(90);
-          }
-// Else continue with gimbal operation
-          else {
+          } else {  // Else continue with gimbal operation
             // Yaw, Pitch, Roll values - Radians to degrees
-            ypr[0] = ypr[0] * 180 / M_PI;
-            ypr[1] = ypr[1] * 180 / M_PI;
-            ypr[2] = ypr[2] * 180 / M_PI;
-            if (j <= 300){
+            ypr[0] *= 180 / M_PI;
+            ypr[1] *= 180 / M_PI;
+            ypr[2] *= 180 / M_PI;
+            if (j <= 300) {
 // Skip 300 readings for calibration process
               correct = ypr[0]; // Yaw starts at random value, so we capture last value after 300 readings
               j++;
             } else {
-              ypr[0] = ypr[0] - correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
+              ypr[0] -= correct; // Set the Yaw to 0 deg - subtract  the last random Yaw value from the currrent value to make the Yaw 0 degrees
 // Map the values of the MPU6050 sensor from -90 to 90 to values suatable for the servo control from 0 to 180
 //** MAP NEED TO BE CHANGED ACCORDINGLY
 
-              int servo0Value = map(ypr[0], -90, 90, 0, 180);
-              int servo1Value = map(ypr[1], -90, 90, 0, 180);
-              int servo2Value = map(ypr[2], -90, 90, 180, 0);
+              // long map(long x, long in_min, long in_max, long out_min, long out_max)
+              const int servo0Value = map((int)ypr[0], -90, 90, 0, 180);  // cast float ypr[3] into int
+              const int servo1Value = map((int)ypr[1], -90, 90, 0, 180);
+              const int servo2Value = map((int)ypr[2], -90, 90, 180, 0);
               
 // Control the servos according to the MPU6050 orientation
               servo_y.write(servo0Value);
               servo_p.write(servo1Value);
               servo_r.write(servo2Value); 
             }
-          }
+        }
+#endif  // OUTPUT_READABLE_YAWPITCHROLL
 
-      #endif  // OUTPUT_READABLE_YAWPITCHROLL
       blinkState = !blinkState;
       digitalWrite(LED_PIN, blinkState);
-  }
+    }
 
     DateTime now;
 
