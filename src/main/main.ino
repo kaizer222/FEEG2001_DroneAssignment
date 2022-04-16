@@ -137,7 +137,7 @@ void setup() {
 
 // Verify connection
   //Serial.println(F("Testing device connections..."));
-  //Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
+  Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
 // Load and configure DMP
   //Serial.println(F("Initializing DMP..."));
@@ -233,7 +233,7 @@ wdt_enable(WDTO_2S);  // if the watchdog is not called within 2 seconds, the mic
 }
 
 void loop() {
-wdt_reset(); //call the watchdog
+
 // ========================     MPU Main Loop     ========================//
 // If programming failed, don't try to do anything
   if (!dmpReady) return;
@@ -311,5 +311,5 @@ wdt_reset(); //call the watchdog
   syncTime = millis();
   logfile.println(String(logString));
   logfile.flush();
-
+  wdt_reset(); //call the watchdog
 }
