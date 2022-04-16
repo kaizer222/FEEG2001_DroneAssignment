@@ -13,7 +13,7 @@
  * Pin  9     |   Pitch Servo                   |
  * Pin  8     |   Roll Servo                    |
  */
-
+#include <avr/wdt.h>
 // ========================   MPU required libraries    ======================== //
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
@@ -90,7 +90,7 @@ int j = 0;
 float correct;
 
 // ========================     Toggle Initialisation    ======================== //
-volatile bool lock_flag;
+volatile bool lock_flag=false;
 volatile int pwm_value = 0;
 volatile int prev_time = 0;
 
@@ -229,11 +229,11 @@ servo_r.attach(8);
 
 // ========================     Toggle Set Up      ========================//
 attachInterrupt(1, rising, RISING);
-
+wdt_enable(WDTO_2S);  // if the watchdog is not called within 2 seconds, the microcontroller reboots
 }
 
 void loop() {
-
+wdt_reset(); //call the watchdog
 // ========================     MPU Main Loop     ========================//
 // If programming failed, don't try to do anything
   if (!dmpReady) return;
@@ -267,27 +267,23 @@ void loop() {
           mpu.dmpGetGravity(&gravity, &q);
           mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
           mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+          ypr[0] = ypr[0] * 180 / M_PI;
+          ypr[1] = ypr[1] * 180 / M_PI;
+          ypr[2] = ypr[2] * 180 / M_PI; 
 // ========================     Gimbal Implementation Here     ========================// 
 // Lock gimbal if toggle is high
           if (lock_flag) {
               servo_y.write(90);
               servo_p.write(90);
               servo_r.write(90);
+              Serial.println(lock_flag);
           }
 // Else continue with gimbal operation
           else {
-            // Yaw, Pitch, Roll values - Radians to degrees
-            ypr[0] = ypr[0] * 180 / M_PI;
-            ypr[1] = ypr[1] * 180 / M_PI;
-            ypr[2] = ypr[2] * 180 / M_PI;
-            if (j <= 300){
-// Skip 300 readings for calibration process
-              correct = ypr[0]; // Yaw starts at random value, so we capture last value after 300 readings
-              j++;
-            } else {
               byte servo0Value = map(ypr[0], -90, 90, 0, 180);
               byte servo1Value = map(ypr[1], -90, 90, 0, 180);
               byte servo2Value = map(ypr[2], -90, 90, 180, 0);
+              Serial.println(lock_flag);
               
 // Control the servos according to the MPU6050 orientation
               servo_y.write(servo0Value);
@@ -298,7 +294,7 @@ void loop() {
           
 
       #endif  // OUTPUT_READABLE_YAWPITCHROLL
-  }
+  
   
     uint32_t m = millis();
       
@@ -313,7 +309,7 @@ void loop() {
   Serial.println(logString);
   if ((millis() - syncTime) < SYNC_INTERVAL) return;
   syncTime = millis();
-  logfile.println(logString);
+  logfile.println(String(logString));
   logfile.flush();
 
 }
