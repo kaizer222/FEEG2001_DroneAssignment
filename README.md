@@ -1,7 +1,7 @@
 # FEEG2001_DroneAssignment
 GROUP 11 FEEG2001 SEMESTER 2 MULTIROTOR DESIGN PROJECT 
 
-Notes:
+Arduino Code is now tested and working! 
 
 Contribution:
 1) SD Card coding	:	James Tang
@@ -10,9 +10,8 @@ Contribution:
 4) Troubleshooting	:	Kai Wen
 
 To do:
-1) 'Refresh' function implementation for DataLogging shield due to lagging after a few readings
-2) Reduce gimbal jittering
-3) Data logging formatting 
+1) Yaw axis stabilisation (optional)
+
 
 Sources:
 1) Gimbal Code	: https://howtomechatronics.com/projects/diy-arduino-gimbal-self-stabilizing-platform/
