@@ -88,7 +88,7 @@ void error(char *str) {
 Servo servo_y, servo_p, servo_r;
 
 // === Toggle Initialisation ===
-volatile bool lock_flag=false;
+volatile bool lock_flag;
 volatile int pwm_value = 0;
 volatile int prev_time = 0;
 
@@ -101,10 +101,10 @@ void falling() {
     attachInterrupt(1, rising, RISING);
     pwm_value = micros() - prev_time;
     // Serial.println(pwm_value);
-    if (pwm_value < 900){
+    if (pwm_value < 1200){
         lock_flag = true;
     }
-    else if (pwm_value > 2000){
+    else if (pwm_value > 1800){
         lock_flag = false;
     }
 }
@@ -263,9 +263,7 @@ void loop() {
         mpu.dmpGetGravity(&gravity, &q);
         mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
         mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-        ypr[0] *= 180 / M_PI;
-        ypr[1] *= 180 / M_PI;
-        ypr[2] *= 180 / M_PI;
+        
 
 // === Gimbal Implementation ===
         // Lock gimbal if toggle is high
@@ -275,6 +273,9 @@ void loop() {
             servo_r.write(90);
             Serial.println(lock_flag);
         } else {  // Else continue with gimbal operation
+            ypr[0] *= 180 / M_PI;
+            ypr[1] *= 180 / M_PI;
+            ypr[2] *= 180 / M_PI;
             uint8_t servo0Value = map(ypr[0], -90, 90, 0, 180);
             uint8_t servo1Value = map(ypr[1], -90, 90, 0, 180);
             uint8_t servo2Value = map(ypr[2], -90, 90, 180, 0);

@@ -43,10 +43,10 @@ void falling() {
   attachInterrupt(1, rising, RISING);
   pwm_value = micros()-prev_time;
   Serial.println(pwm_value);
-  if (pwm_value<900){
+  if (pwm_value<1200){
     lock_flag=true;
   }
-  else if(pwm_value>2000){
+  else if(pwm_value>1800){
     lock_flag=false;
   }
   else{
